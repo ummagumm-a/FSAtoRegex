@@ -1,0 +1,2 @@
+((a|eps)(a|eps)*(a|eps)|(a|eps))((a|eps)(a|eps)*(a|eps)|(a|eps))*((a|eps)(a|eps)*(b)|(b))|((a|eps)(a|eps)*(b)|(b))
+((a|eps)(a|eps)*(a|eps)|(a|eps))((a|eps)(a|eps)*(a|eps)|(a|eps))*((a|eps)(a|eps)*(b)|(b))|((a|eps)(a|eps)*(b)|(b))

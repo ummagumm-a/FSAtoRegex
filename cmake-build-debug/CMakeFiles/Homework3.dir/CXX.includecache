@@ -1,0 +1,32 @@
+#IncludeRegexLine: ^[ 	]*[#%][ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+/home/ummagumm_a/Innopolis/S21/Courses/TCS/Homework3/main.cpp
+iostream
+-
+memory
+-
+vector
+-
+list
+-
+optional
+-
+unordered_map
+-
+unordered_set
+-
+queue
+-
+set
+-
+fstream
+-
+regex
+-
+

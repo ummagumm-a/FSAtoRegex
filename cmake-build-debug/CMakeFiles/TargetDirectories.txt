@@ -1,0 +1,3 @@
+/home/ummagumm_a/Innopolis/S21/Courses/TCS/Homework3/cmake-build-debug/CMakeFiles/rebuild_cache.dir
+/home/ummagumm_a/Innopolis/S21/Courses/TCS/Homework3/cmake-build-debug/CMakeFiles/edit_cache.dir
+/home/ummagumm_a/Innopolis/S21/Courses/TCS/Homework3/cmake-build-debug/CMakeFiles/Homework3.dir
