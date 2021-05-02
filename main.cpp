@@ -690,9 +690,9 @@ private:
             accepting.push_back(*findVertex(tmp));
         }
 
-//        printInfo();
-//        for (const auto& tmp : trans)
-//            cout << tmp << endl;
+        printInfo();
+        for (const auto& tmp : trans)
+            cout << tmp << endl;
     }
 
     void initTable(vector<vector<string>>& table)
@@ -734,26 +734,28 @@ private:
             table[i][i].append("|eps");
         }
 
-//        printTable(table);
+        printTable(table);
     }
 
-    void constructTable(vector<vector<string>>& table, int iteration)
+    void constructTable(vector<vector<string>>& table)
     {
         int numberOfStates = states.size();
-        for (int i = 0; i < numberOfStates; ++i) {
+        for (int k = 0; k < numberOfStates; ++k) {
             vector<vector<string>> previous(table);
 
             for (int i = 0; i < numberOfStates; ++i)
             {
                 for (int j = 0; j < numberOfStates; ++j)
                 {
-                    table[i][j] =     "(" + previous[i][iteration] + ")"
-                                      + "(" + previous[iteration][iteration] + ")*"
-                                      + "(" + previous[iteration][j] + ")"
+                    table[i][j] =     "(" + previous[i][k] + ")"
+                                      + "(" + previous[k][k] + ")*"
+                                      + "(" + previous[k][j] + ")"
                                       + "|"
                                       + "(" + previous[i][j] + ")";
                 }
             }
+            cout << "table" << endl;
+            printTable(table);
         }
 //        printTable(table);
     }
@@ -796,7 +798,7 @@ public:
                 states.size(), vector<string>(
                         states.size(), "{}"));
         initTable(table);
-        constructTable(table, 0);
+        constructTable(table);
 
         return makeRegex(table);
     }
