@@ -504,7 +504,7 @@ private:
     public:
         explicit StateNotInSetException(const string& state)
                 :
-                out_state(string("E3: A state '")
+                out_state(string("E1: A state '")
                           + state
                           + string("' is not in the set of states"))
         {}
@@ -755,8 +755,10 @@ private:
         {
             accepting.push_back(findVertex(tmp).second);
         }
+        auto tmpInitial = initialInfo[0];
+        if (find(states.begin(), states.end(), tmpInitial) == states.end()) throw StateNotInSetException(tmpInitial);
 
-        checkIfDisjoint();
+                    checkIfDisjoint();
 
 //        printInfo();
 //        for (const auto& tmp : trans)

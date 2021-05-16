@@ -1,2 +1,2 @@
 Error: 
-E2: Some states are disjoint
+E3: A state 'ofnf' is not in the set of states
