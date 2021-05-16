@@ -105,10 +105,10 @@ class GraphADT
 public:
     virtual shared_ptr<Vertex<T>> addVertex(const T&) = 0;
     virtual shared_ptr<Edge<N, T>> addEdge(shared_ptr<Vertex<T>>, shared_ptr<Vertex<T>>, N) = 0;
-    [[nodiscard]] virtual optional<list<shared_ptr<Edge<N, T>>>> edgesFrom(const shared_ptr<Vertex<T>>& vertex) const = 0;
-    [[nodiscard]] virtual optional<list<shared_ptr<Edge<N, T>>>> edgesTo(const shared_ptr<Vertex<T>>& vertex) const = 0;
-    [[nodiscard]] virtual optional<shared_ptr<Vertex<T>>> findVertex(const T&) const = 0;
-    [[nodiscard]] virtual optional<shared_ptr<Edge<N, T>>> findEdge(const T& from, const T& to) const = 0;
+    [[nodiscard]] virtual pair<bool, list<shared_ptr<Edge<N, T>>>> edgesFrom(const shared_ptr<Vertex<T>>& vertex) const = 0;
+    [[nodiscard]] virtual pair<bool, list<shared_ptr<Edge<N, T>>>> edgesTo(const shared_ptr<Vertex<T>>& vertex) const = 0;
+    [[nodiscard]] virtual pair<bool, shared_ptr<Vertex<T>>> findVertex(const T&) const = 0;
+    [[nodiscard]] virtual pair<bool, shared_ptr<Edge<N, T>>> findEdge(const T& from, const T& to) const = 0;
     [[nodiscard]] virtual bool hasEdge(const shared_ptr<Vertex<T>>&, const shared_ptr<Vertex<T>>&) const = 0;
 };
 
@@ -120,7 +120,8 @@ public:
     AdjacencyMatrixGraph()
             :
             greatest_occupied_index(-1),
-            matrix(initial_matrix_size, vector<shared_ptr<Edge<N, T>>>(initial_matrix_size, nullptr))
+            initial_matrix_size(8),
+            matrix(8, vector<shared_ptr<Edge<N, T>>>(8, nullptr))
     {
         for (int i = 0; i < initial_matrix_size; ++i)
         {
@@ -157,7 +158,8 @@ private:
         int newSize = matrix.size() * 2;
 
         // push all newly available vertices to the set of available vertices
-        for (int i = greatest_occupied_index + 1; i < newSize; ++i) {
+        for (int i = greatest_occupied_index + 1; i < newSize; ++i)
+        {
             free_vertices.push(i);
         }
 
@@ -185,7 +187,8 @@ public:
     shared_ptr<Vertex<T>> addVertex(const T& value) override
     {
         // what to do duplicate names of vertices
-        if (findVertex(value)) return *findVertex(value);
+//        cout << findVertex(value).first << " " << findVertex(value).second << endl;
+        if (findVertex(value).first) return findVertex(value).second;
 
         // obtain index for new vertex
         int index = newElementIndex();
@@ -230,8 +233,9 @@ private:
 
         // TODO: adding already existing edge
         // if the client tries to add already existing edge - just update its weight
-        if (auto edge = findEdge(fromValue, toValue))
-            (*edge)->setWeight(new_edge->getWeight());
+        auto edge = findEdge(fromValue, toValue);
+        if (edge.first)
+            edge.second->setWeight(new_edge->getWeight());
 
         // add the edge to the list of edges
         auto it = edgeList.insert({{ fromVertex, toVertex }, new_edge });
@@ -262,13 +266,14 @@ public:
     /* End add new edge */
 
     // obtain the list of edges outgoing from the specified vertex
-    optional<list<shared_ptr<Edge<N, T>>>> edgesFrom(const shared_ptr<Vertex<T>>& vertex) const override
+    pair<bool, list<shared_ptr<Edge<N, T>>>> edgesFrom(const shared_ptr<Vertex<T>>& vertex) const override
     {
+        list<shared_ptr<Edge<N, T>>> edges;
         // if a client tries to find edges from non-existing vertex
-        if (vertexList.find(vertex->getValue()) == vertexList.end()) return {};
+        if (vertexList.find(vertex->getValue()) == vertexList.end()) return { false, edges };
 //            throw exceptions::ActionWithNonExistingVertexException();
 
-        list<shared_ptr<Edge<N, T>>> edges;
+
         // obtain vertex's index in the matrix
         int index = vertex->getIndexInMatrix();
 
@@ -283,17 +288,19 @@ public:
         }
 
         // if there is no outgoing edges - return nullopt
-        if (edges.size() == 0) return {};
-        else return edges; // otherwise, return the list
+        if (edges.size() == 0) return { false, edges };
+        else return { true, edges }; // otherwise, return the list
     }
 
     // obtain the list of edges incoming to the specified vertex
-    optional<list<shared_ptr<Edge<N, T>>>> edgesTo(const shared_ptr<Vertex<T>>& vertex) const override
+    pair<bool, list<shared_ptr<Edge<N, T>>>> edgesTo(const shared_ptr<Vertex<T>>& vertex) const override
     {
-        if (vertexList.find(vertex->getValue()) == vertexList.end()) return {};
+        list<shared_ptr<Edge<N, T>>> edges;
+
+        if (vertexList.find(vertex->getValue()) == vertexList.end()) return { false, edges };
 //            throw exceptions::ActionWithNonExistingVertexException();
 
-        list<shared_ptr<Edge<N, T>>> edges;
+
         // obtain vertex's index in the matrix
         int index = vertex->getIndexInMatrix();
 
@@ -308,41 +315,41 @@ public:
         }
 
         // if there is no incoming edges - return nullopt
-        if (edges.size() == 0) return {};
-        else return edges; // otherwise, return the list
+        if (edges.size() == 0) return { false, edges };
+        else return { true, edges }; // otherwise, return the list
     }
 
     // find a vertex with the specified value
-    optional<shared_ptr<Vertex<T>>> findVertex(const T& value) const override
+    pair<bool, shared_ptr<Vertex<T>>> findVertex(const T& value) const override
     {
         // try to find a vertex with the specified value in the vertex list
         auto tmp = vertexList.find(value);
 
         // if the vertex is found - return a reference to it
         if (tmp != vertexList.end())
-            return tmp->second;
-        else return {}; // if there is no such vertex - return nullopt
+            return { true, tmp->second };
+        else return { false, nullptr }; // if there is no such vertex - return nullopt
     }
 
     // find an edge with the specified values at end vertices
-    optional<shared_ptr<Edge<N, T>>> findEdge(const T& from, const T& to) const override
+    pair<bool, shared_ptr<Edge<N, T>>> findEdge(const T& from, const T& to) const override
     {
         // try to obtain vertices with the specified values in the graph
         const auto v1 = findVertex(from);
         const auto v2 = findVertex(to);
 
         // if the vertices were found
-        if (v1 && v2)
+        if (v1.first && v2.first)
         {
             // try to find an edge with the same end vertices in the edge list
-            const auto tmp = edgeList.find({ v1.value(), v2.value() });
+            const auto tmp = edgeList.find({ v1.second, v2.second });
 
             // if the edge is found - return a reference to it
             if (tmp != edgeList.end())
-                return tmp->second;
+                return { true, tmp->second };
         }
 
-        return {}; // if there is no such edge - return nullopt
+        return { false, nullptr }; // if there is no such edge - return nullopt
     }
 
     // check if there is an edge between two vertices
@@ -353,7 +360,7 @@ public:
             throw exceptions::ActionWithNonExistingVertexException();
 
         // true if this function could find the edge in the graph
-        return findEdge(from->getValue(), to->getValue()).has_value();
+        return findEdge(from->getValue(), to->getValue()).first;
     }
 
 
@@ -407,7 +414,7 @@ private:
     priority_queue<int, vector<int>, greater<>> free_vertices;
     int greatest_occupied_index;
 
-    inline static int initial_matrix_size = 8;
+    int initial_matrix_size;
 };
 
 class FSA : public AdjacencyMatrixGraph<string, string>
@@ -423,10 +430,20 @@ private:
 
     class StateNotInSetException : public exception
     {
+    public:
+        explicit StateNotInSetException(const string& state)
+                :
+                out_state(string("E3: A state '")
+                          + state
+                          + string("' is not in the set of states"))
+        {}
+
         [[nodiscard]] const char* what() const noexcept override
         {
-            return "E1: A state 's' is not in the set of states";
+            return out_state.c_str();
         }
+    private:
+        string out_state;
     };
 
     class DisjointStatesException : public exception
@@ -439,10 +456,20 @@ private:
 
     class TransitionNotInSetException : public exception
     {
+    public:
+        explicit TransitionNotInSetException(const string& trans)
+            :
+            out_trans(string("E3: A transition '")
+                + trans
+                + string("' is not represented in the alphabet"))
+        {}
+
         [[nodiscard]] const char* what() const noexcept override
         {
-            return "E3: A transition 'a' is not represented in the alphabet";
+            return out_trans.c_str();
         }
+    private:
+        string out_trans;
     };
 
     class NoInitialStateException : public exception
@@ -576,6 +603,11 @@ private:
         initialInfo = parseLine(lines[2]);
         acceptingInfo = parseLine(lines[3]);
         trans = parseLine(lines[4]);
+
+        if (states.empty()
+                || alphabet.empty()
+                || trans.empty())
+            throw MalformedFileException();
     }
 
     inline void addVertices()
@@ -603,17 +635,18 @@ private:
             auto v1 = findVertex(fromVertex);
             auto v2 = findVertex(toVertex);
 
-            if (!(v1 && v2)) throw StateNotInSetException();
-            else if (alphabet.find(transName) == alphabet.end()) throw TransitionNotInSetException();
+            if (!v1.first) throw StateNotInSetException(fromVertex);
+            else if (!v2.first) throw StateNotInSetException(toVertex);
+            else if (alphabet.find(transName) == alphabet.end()) throw TransitionNotInSetException(transName);
             else
             {
-                if (hasEdge(*v1, *v2))
+                if (hasEdge(v1.second, v2.second))
                 {
-                    auto edge = *findEdge(fromVertex, toVertex);
+                    auto edge = findEdge(fromVertex, toVertex).second;
                     auto newName = edge->getWeight() + "|" + transName;
                     edge->setWeight(newName);
                 }
-                else addEdge(*v1, *v2, transName);
+                else addEdge(v1.second, v2.second, transName);
             }
         }
     }
@@ -623,30 +656,30 @@ private:
         for (const auto& tmp : states)
         {
             auto vertex = findVertex(tmp);
-            auto from = edgesFrom(*vertex);
-            auto to = edgesTo(*vertex);
+            auto from = edgesFrom(vertex.second);
+            auto to = edgesTo(vertex.second);
 
             bool toOther = false;
             bool fromOther = false;
-            if (from)
+            if (from.first)
             {
-                for (const auto& tmp1 : *from)
+                for (const auto& tmp1 : from.second)
                 {
                     if (tmp1->getDestination()->getValue() != tmp)
                         toOther = true;
                 }
             }
 
-            if (to)
+            if (to.first)
             {
-                for (const auto& tmp1 : *to)
+                for (const auto& tmp1 : to.second)
                 {
                     if (tmp1->getOrigin()->getValue() != tmp)
                         fromOther = true;
                 }
             }
 
-            if (!((from || to) && (fromOther || toOther)))
+            if (!((from.first || to.first) && (fromOther || toOther)))
             {
                 throw DisjointStatesException();
             }
@@ -684,15 +717,15 @@ private:
         checkIfNoInitial();
         checkIfNondeterministic();
 
-        initial = *findVertex(*initialInfo.begin());
+        initial = findVertex(*initialInfo.begin()).second;
         for (const auto& tmp : acceptingInfo)
         {
-            accepting.push_back(*findVertex(tmp));
+            accepting.push_back(findVertex(tmp).second);
         }
 
-        printInfo();
-        for (const auto& tmp : trans)
-            cout << tmp << endl;
+//        printInfo();
+//        for (const auto& tmp : trans)
+//            cout << tmp << endl;
     }
 
     void initTable(vector<vector<string>>& table)
@@ -702,8 +735,8 @@ private:
 
         for (const auto& state : states)
         {
-            auto thisVertex = *findVertex(state);
-            auto edges = *edgesFrom(thisVertex);
+            auto thisVertex = findVertex(state).second;
+            auto edges = edgesFrom(thisVertex).second;
 //            cout << "outgoing edges: " << endl;
 //            for (const auto& tmp : edges)
 //                tmp->printInfo();
@@ -731,10 +764,13 @@ private:
         }
 
         for (int i = 0; i < states.size(); ++i) {
-            table[i][i].append("|eps");
+            if (table[i][i] == "{}")
+                table[i][i] = "eps";
+            else
+                table[i][i].append("|eps");
         }
 
-        printTable(table);
+//        printTable(table);
     }
 
     void constructTable(vector<vector<string>>& table)
@@ -754,8 +790,8 @@ private:
                                       + "(" + previous[i][j] + ")";
                 }
             }
-            cout << "table" << endl;
-            printTable(table);
+//            cout << "table" << endl;
+//            printTable(table);
         }
 //        printTable(table);
     }
