@@ -2,7 +2,6 @@
 #include <memory>
 #include <vector>
 #include <list>
-#include <optional>
 #include <unordered_map>
 #include <unordered_set>
 #include <queue>
@@ -363,6 +362,78 @@ public:
         return findEdge(from->getValue(), to->getValue()).first;
     }
 
+protected:
+    // indicate whether a vertex was visited during dfs
+    enum class Colors
+    {
+        White,
+        Grey,
+        Black
+    };
+
+    // info about vertex needed for successful dfs
+    struct VertexInDFS
+    {
+        shared_ptr<Vertex<T>> vertex;
+        Colors color;
+        shared_ptr<Vertex<T>> parent;
+    };
+
+    // initialize vertices for using dfs
+    void initVerticesForDFS(vector<VertexInDFS>& verticesInfo) const
+    {
+        for (const auto& tmp : vertexList)
+        {
+            // initial value for each vertex -
+            // vertex itself, white color, and no parent
+            verticesInfo[tmp.second->getIndexInMatrix()] = { tmp.second, Colors::White, nullptr };
+        }
+    }
+
+    // depth-first search in a graph
+    pair<bool, pair<int, int>> dfs_visit(const shared_ptr<Vertex<T>>& u, vector<VertexInDFS>& vertexInfo) const
+    {
+        // mark it visited
+        vertexInfo[u->getIndexInMatrix()].color = Colors::Grey;
+
+        // if a vertex contains outgoing edges
+        auto edges = edgesFrom(u);
+        if (edges.first)
+            // go through each edge outgoing from a vertex
+            for (const auto& edge : edges.second)
+            {
+                // extract neighbour vertex
+                auto v = edge->getDestination();
+
+                if (vertexInfo[v->getIndexInMatrix()].color == Colors::White) // if not yet visited
+                {
+                    // mark current vertex a parent for this neighbour
+                    vertexInfo[v->getIndexInMatrix()].parent = u;
+
+                    dfs_visit(v, vertexInfo);
+                }
+            }
+
+        // mark current vertex totally visited
+        vertexInfo[u->getIndexInMatrix()].color = Colors::Black;
+    }
+
+    // check whether a graph is acyclic
+    bool isDisjoint(shared_ptr<Vertex<T>> start) const
+    {
+        // initialize color and parent for each vertex
+        vector<VertexInDFS> verticesInfo(greatest_occupied_index + 1);
+        initVerticesForDFS(verticesInfo);
+
+        dfs_visit(start, verticesInfo);
+
+        for (const auto& tmp : verticesInfo)
+        {
+            if (tmp.color == Colors::White) return true;
+        }
+
+        return false;
+    }
 
 public:
     // print info about contents of a graph
@@ -553,36 +624,31 @@ private:
     inline bool checkStates(const string& line)
     {
         return line.substr(0, 8) == "states=["
-               && line.back() == ']'
-               && line[line.length() - 2] != ',';
+               && line.back() == ']';
     }
 
     inline bool checkAlpha(const string& line)
     {
         return line.substr(0, 7) == "alpha=["
-               && line.back() == ']'
-               && line[line.length() - 2] != ',';
+               && line.back() == ']';
     }
 
     inline bool checkInitial(const string& line)
     {
         return line.substr(0, 9) == "initial=["
-               && line.back() == ']'
-               && line[line.length() - 2] != ',';
+               && line.back() == ']';
     }
 
     inline bool checkAccepting(const string& line)
     {
         return line.substr(0, 11) == "accepting=["
-               && line.back() == ']'
-               && line[line.length() - 2] != ',';
+               && line.back() == ']';
     }
 
     inline bool checkTrans(const string& line)
     {
         return line.substr(0, 7) == "trans=["
-               && line.back() == ']'
-               && line[line.length() - 2] != ',';
+               && line.back() == ']';
     }
 
     void parseFile()
@@ -653,39 +719,7 @@ private:
 
     inline void checkIfDisjoint()
     {
-        for (const auto& tmp : states)
-        {
-            auto vertex = findVertex(tmp);
-            auto from = edgesFrom(vertex.second);
-            auto to = edgesTo(vertex.second);
-
-            bool toOther = false;
-            bool fromOther = false;
-            if (from.first)
-            {
-                for (const auto& tmp1 : from.second)
-                {
-                    if (tmp1->getDestination()->getValue() != tmp)
-                        toOther = true;
-                }
-            }
-
-            if (to.first)
-            {
-                for (const auto& tmp1 : to.second)
-                {
-                    if (tmp1->getOrigin()->getValue() != tmp)
-                        fromOther = true;
-                }
-            }
-
-            if (!((from.first || to.first) && (fromOther || toOther)))
-            {
-                throw DisjointStatesException();
-            }
-        }
-
-
+        if (isDisjoint(initial)) throw DisjointStatesException();
     }
 
     inline void checkIfNoInitial()
@@ -702,7 +736,7 @@ private:
         {
             int pos = tmp.find('>', tmp.find('>') + 1);
 
-            help.insert(tmp.substr(0, pos));
+            help.insert(tmp.substr(0, pos + 1));
         }
 
         if (help.size() != trans.size()) throw NondeterministicFSAException();
@@ -713,7 +747,6 @@ private:
     {
         addVertices();
         addEdges();
-        checkIfDisjoint();
         checkIfNoInitial();
         checkIfNondeterministic();
 
@@ -722,6 +755,8 @@ private:
         {
             accepting.push_back(findVertex(tmp).second);
         }
+
+        checkIfDisjoint();
 
 //        printInfo();
 //        for (const auto& tmp : trans)
